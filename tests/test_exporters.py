@@ -3,9 +3,9 @@
 from anthropic_radar.models.base import (
     ApiKey,
     Organization,
+    RelationshipKind,
     RunResult,
     ServiceRelationship,
-    RelationshipKind,
     Workspace,
 )
 
