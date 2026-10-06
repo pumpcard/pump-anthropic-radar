@@ -89,7 +89,9 @@ def _render_findings(findings: list[Finding]) -> None:
         console.print("[green]No findings — nothing flagged against the current rule set.[/green]")
         return
 
-    ranked = sorted(findings, key=lambda finding: SEVERITY_ORDER.get(finding.severity.value.lower(), 9))
+    ranked = sorted(
+        findings, key=lambda finding: SEVERITY_ORDER.get(finding.severity.value.lower(), 9)
+    )
     table = Table(title="Findings", title_justify="left", header_style="bold magenta")
     table.add_column("Sev", width=8)
     table.add_column("Rule", width=10)
@@ -112,7 +114,9 @@ def _render_findings(findings: list[Finding]) -> None:
         counts[finding.severity.value] = counts.get(finding.severity.value, 0) + 1
     summary = "  ".join(
         f"[{SEVERITY_STYLE.get(sev.lower(), '')}]{count} {sev}[/{SEVERITY_STYLE.get(sev.lower(), '')}]"
-        for sev, count in sorted(counts.items(), key=lambda kv: SEVERITY_ORDER.get(kv[0].lower(), 9))
+        for sev, count in sorted(
+            counts.items(), key=lambda kv: SEVERITY_ORDER.get(kv[0].lower(), 9)
+        )
     )
     console.print(f"\n{summary}\n")
 
@@ -240,7 +244,9 @@ def run(
         "--admin-key",
         help="Overrides ANTHROPIC_ADMIN_KEY. Unlocks org-wide usage and cost.",
     ),
-    lookback: int = typer.Option(7, "--lookback", help="Days of usage history. Cost uses at least 30."),
+    lookback: int = typer.Option(
+        7, "--lookback", help="Days of usage history. Cost uses at least 30."
+    ),
     output: str = typer.Option("table", "--output", "-o", help="table | json"),
     out_file: str | None = typer.Option(None, "--out-file", help="Write the JSON payload here."),
     csv_dir: str | None = typer.Option(None, "--csv-dir", help="Write per-resource CSVs here."),
@@ -339,7 +345,9 @@ def findings(
         None, "--workspace", help="Scope the scan to this workspace ID."
     ),
     api_key: str | None = typer.Option(None, "--api-key", help="Overrides ANTHROPIC_API_KEY."),
-    admin_key: str | None = typer.Option(None, "--admin-key", help="Overrides ANTHROPIC_ADMIN_KEY."),
+    admin_key: str | None = typer.Option(
+        None, "--admin-key", help="Overrides ANTHROPIC_ADMIN_KEY."
+    ),
     lookback: int = typer.Option(7, "--lookback", help="Days of usage history."),
     output: str = typer.Option("table", "--output", "-o", help="table | json"),
 ) -> None:

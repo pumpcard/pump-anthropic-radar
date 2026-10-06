@@ -38,7 +38,11 @@ class FindingEngine:
         used_key_ids = {bucket.api_key_id for bucket in result.usage if bucket.api_key_id}
         for key in result.api_keys:
             label = key.name or key.id
-            if (key.status or "").lower() == "active" and key.id not in used_key_ids and result.usage:
+            if (
+                (key.status or "").lower() == "active"
+                and key.id not in used_key_ids
+                and result.usage
+            ):
                 out.append(
                     Finding(
                         rule_id="KEY_001",

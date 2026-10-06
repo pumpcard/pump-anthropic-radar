@@ -17,18 +17,20 @@ class _Resp:
 
 
 def test_run_sync_collects_inventory(monkeypatch) -> None:
-    def fake_get(url: str, headers: dict | None = None, params: dict | None = None, timeout: float = 0):
+    def fake_get(
+        url: str, headers: dict | None = None, params: dict | None = None, timeout: float = 0
+    ):
         path = url.split("api.anthropic.com", 1)[-1]
         if path == "/v1/organizations/me":
             return _Resp({"id": "org_1", "name": "Acme"})
         if path == "/v1/organizations/users":
-            return _Resp({"data": [{"id": "user_1", "email": "a@b.c", "role": "admin"}], "has_more": False})
+            return _Resp(
+                {"data": [{"id": "user_1", "email": "a@b.c", "role": "admin"}], "has_more": False}
+            )
         if path == "/v1/organizations/invites":
             return _Resp({"data": [], "has_more": False})
         if path == "/v1/organizations/workspaces":
-            return _Resp(
-                {"data": [{"id": "wrkspc_1", "name": "prod-lambda"}], "has_more": False}
-            )
+            return _Resp({"data": [{"id": "wrkspc_1", "name": "prod-lambda"}], "has_more": False})
         if path.endswith("/members"):
             return _Resp({"data": [{"id": "user_1"}], "has_more": False})
         if path == "/v1/organizations/api_keys":

@@ -101,7 +101,9 @@ def scan_claude_code_usage(
         )
         for bucket in pages:
             for result in bucket.get("results", [bucket]):
-                added = result.get("lines_of_code_added", result.get("code_edit_tool_lines_added", 0))
+                added = result.get(
+                    "lines_of_code_added", result.get("code_edit_tool_lines_added", 0)
+                )
                 removed = result.get(
                     "lines_of_code_removed",
                     result.get("code_edit_tool_lines_removed", 0),

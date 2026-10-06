@@ -10,7 +10,14 @@ from typer.testing import CliRunner
 
 from anthropic_radar.cli import app
 from anthropic_radar.client import AnthropicRadarError
-from anthropic_radar.models.base import Finding, Organization, RunResult, Severity, UsageBucket, Workspace
+from anthropic_radar.models.base import (
+    Finding,
+    Organization,
+    RunResult,
+    Severity,
+    UsageBucket,
+    Workspace,
+)
 from anthropic_radar.runner import RunConfig
 
 runner = CliRunner()
@@ -62,7 +69,17 @@ def test_run_json_includes_the_scan_payload(monkeypatch: pytest.MonkeyPatch) -> 
 
     result = runner.invoke(
         app,
-        ["run", "--admin-key", "sk-ant-admin", "--workspace", "wrkspc_1", "--lookback", "7", "-o", "json"],
+        [
+            "run",
+            "--admin-key",
+            "sk-ant-admin",
+            "--workspace",
+            "wrkspc_1",
+            "--lookback",
+            "7",
+            "-o",
+            "json",
+        ],
     )
 
     assert result.exit_code == 0, result.stdout
@@ -267,7 +284,15 @@ def test_run_report_requires_an_admin_key(monkeypatch: pytest.MonkeyPatch, tmp_p
 
     result = runner.invoke(
         app,
-        ["run", "--api-key", "sk-ant-api", "--upload-token", "tok", "--report-file", str(tmp_path / "r.csv")],
+        [
+            "run",
+            "--api-key",
+            "sk-ant-api",
+            "--upload-token",
+            "tok",
+            "--report-file",
+            str(tmp_path / "r.csv"),
+        ],
     )
 
     assert result.exit_code == 1

@@ -26,7 +26,9 @@ def test_admin_endpoint_requires_an_admin_key() -> None:
 def test_get_sends_the_admin_key(monkeypatch: pytest.MonkeyPatch) -> None:
     seen: dict[str, object] = {}
 
-    def fake_get(url: str, headers: dict | None = None, params: dict | None = None, timeout: float = 0):
+    def fake_get(
+        url: str, headers: dict | None = None, params: dict | None = None, timeout: float = 0
+    ):
         seen["url"] = url
         seen["headers"] = headers
         seen["params"] = params
@@ -53,7 +55,9 @@ def test_paginate_follows_next_page_then_after_id(monkeypatch: pytest.MonkeyPatc
     ]
     calls: list[dict] = []
 
-    def fake_get(url: str, headers: dict | None = None, params: dict | None = None, timeout: float = 0):
+    def fake_get(
+        url: str, headers: dict | None = None, params: dict | None = None, timeout: float = 0
+    ):
         calls.append(dict(params or {}))
         return _Resp(pages[len(calls) - 1])
 
@@ -67,7 +71,9 @@ def test_paginate_follows_next_page_then_after_id(monkeypatch: pytest.MonkeyPatc
 
 
 def test_http_error_is_wrapped(monkeypatch: pytest.MonkeyPatch) -> None:
-    def fake_get(url: str, headers: dict | None = None, params: dict | None = None, timeout: float = 0):
+    def fake_get(
+        url: str, headers: dict | None = None, params: dict | None = None, timeout: float = 0
+    ):
         return _Resp({}, status=401, text="unauthorized")
 
     monkeypatch.setattr("anthropic_radar.client.requests.get", fake_get)

@@ -86,7 +86,9 @@ def export_drawio(result: RunResult, out_path: str | Path) -> Path:
         if parent_node is None:
             if default_ws_node is None:
                 default_ws_node = "ws_default"
-                cells.append(_cell(default_ws_node, "(org default)", 40, ws_y, 180, 50, _COLORS["workspace"]))
+                cells.append(
+                    _cell(default_ws_node, "(org default)", 40, ws_y, 180, 50, _COLORS["workspace"])
+                )
                 cells.append(_edge(f"e_org_{default_ws_node}", org_id, default_ws_node))
             parent_node = default_ws_node
         for key in keys:
