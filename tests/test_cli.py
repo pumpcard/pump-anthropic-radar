@@ -192,6 +192,57 @@ def test_run_uploads_the_cost_report(monkeypatch: pytest.MonkeyPatch, tmp_path) 
     assert "on its way to Pump" in result.stdout
 
 
+def test_run_uploads_usage_when_none_was_found(
+    monkeypatch: pytest.MonkeyPatch, tmp_path
+) -> None:
+    _patch_run(monkeypatch, RunResult())
+    report_path = tmp_path / "report.csv"
+    seen: dict[str, object] = {}
+
+    def fake_fetch(client: object, *, lookback_days: int, workspace_id: str | None) -> object:
+        from anthropic_radar.scanners.report import CostReport
+
+        return CostReport(
+            rows=[
+                {
+                    "Date": "2026-01-01",
+                    "ProjectID": "wrkspc_1",
+                    "LineItem": "tokens",
+                    "Amount": "1.000000",
+                    "Currency": "USD",
+                }
+            ]
+        )
+
+    def fake_upload(api_base: str, token: str, files: dict[str, str]) -> None:
+        seen["files"] = files
+
+    monkeypatch.setattr("anthropic_radar.scanners.report.fetch_cost_report", fake_fetch)
+    monkeypatch.setattr("anthropic_radar.upload.upload_csvs", fake_upload)
+
+    result = runner.invoke(
+        app,
+        [
+            "run",
+            "--admin-key",
+            "sk-ant-admin",
+            "--upload-token",
+            "tok",
+            "--report-file",
+            str(report_path),
+        ],
+    )
+
+    usage_path = report_path.with_name("usage.csv")
+    assert result.exit_code == 0, result.stdout
+    assert seen["files"] == {"billing": str(report_path), "inventory": str(usage_path)}
+    assert usage_path.is_file()
+    text = usage_path.read_text(encoding="utf-8")
+    assert text.startswith("starting_at,")
+    assert text.count("\n") == 1
+    assert "header-only inventory file" in result.stdout
+
+
 def test_run_can_write_the_report_without_uploading(
     monkeypatch: pytest.MonkeyPatch, tmp_path
 ) -> None:
