@@ -192,9 +192,7 @@ def test_run_uploads_the_cost_report(monkeypatch: pytest.MonkeyPatch, tmp_path) 
     assert "on its way to Pump" in result.stdout
 
 
-def test_run_uploads_usage_when_none_was_found(
-    monkeypatch: pytest.MonkeyPatch, tmp_path
-) -> None:
+def test_run_uploads_usage_when_none_was_found(monkeypatch: pytest.MonkeyPatch, tmp_path) -> None:
     _patch_run(monkeypatch, RunResult())
     report_path = tmp_path / "report.csv"
     seen: dict[str, object] = {}
