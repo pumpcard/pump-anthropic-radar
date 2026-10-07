@@ -1,4 +1,4 @@
-"""anthropic-radar CLI."""
+"""pump-anthropic-radar CLI."""
 
 from __future__ import annotations
 
@@ -130,7 +130,7 @@ def _resolve_pump_upload(
     """Return the token and API base for this run.
 
     ``--upload-token`` wins. ``--upload`` uses the token stored by
-    ``anthropic-radar login``. An explicit ``--api-base`` (or ``PUMP_API_BASE``)
+    ``pump-anthropic-radar login``. An explicit ``--api-base`` (or ``PUMP_API_BASE``)
     overrides the base saved at login.
     """
     from anthropic_radar.pump_login import DEFAULT_API_BASE, token_is_expired
@@ -148,13 +148,13 @@ def _resolve_pump_upload(
     if creds is None:
         console.print(
             "[bold red]Upload failed:[/bold red] Not logged in. "
-            "Run `anthropic-radar login`, or pass --upload-token."
+            "Run `pump-anthropic-radar login`, or pass --upload-token."
         )
         raise typer.Exit(code=1)
     if token_is_expired(creds):
         console.print(
             "[bold red]Upload failed:[/bold red] Pump login expired. "
-            "Run `anthropic-radar login` again."
+            "Run `pump-anthropic-radar login` again."
         )
         raise typer.Exit(code=1)
     return creds.access_token, api_base or creds.api_base
@@ -256,12 +256,12 @@ def run(
     upload: bool = typer.Option(
         False,
         "--upload",
-        help="Upload costs as billing and usage as inventory, using `anthropic-radar login`.",
+        help="Upload costs as billing and usage as inventory, using `pump-anthropic-radar login`.",
     ),
     upload_token: str | None = typer.Option(
         None,
         "--upload-token",
-        help="Pump upload token. Overrides the token stored by `anthropic-radar login`.",
+        help="Pump upload token. Overrides the token stored by `pump-anthropic-radar login`.",
     ),
     api_base: str | None = typer.Option(
         None,
@@ -408,7 +408,7 @@ def status() -> None:
         typer.echo(str(exc), err=True)
         raise typer.Exit(code=1) from exc
     if creds is None:
-        typer.echo("Not logged in. Run `anthropic-radar login`.")
+        typer.echo("Not logged in. Run `pump-anthropic-radar login`.")
         raise typer.Exit(code=1)
     upload = f" upload {creds.upload_id}" if creds.upload_id else ""
     typer.echo(f"Logged in to {creds.api_base}.{upload} Token expires {creds.expires_at}.")
@@ -417,11 +417,11 @@ def status() -> None:
 @app.command()
 def version() -> None:
     """Print the version."""
-    console.print(f"anthropic-radar {__version__}")
+    console.print(f"pump-anthropic-radar {__version__}")
 
 
 def main() -> None:
-    app(prog_name="anthropic-radar")
+    app(prog_name="pump-anthropic-radar")
 
 
 if __name__ == "__main__":

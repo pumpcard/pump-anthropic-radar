@@ -1,4 +1,4 @@
-"""Log in to Pump from the anthropic-radar CLI.
+"""Log in to Pump from the pump-anthropic-radar CLI.
 
 OAuth 2.0 authorization code with PKCE (S256), the same shape `gh` and the
 Stripe CLI use for a public client that cannot keep a secret:
@@ -32,11 +32,11 @@ from urllib.parse import parse_qs, urlencode, urlsplit
 
 from anthropic_radar import __version__
 
-CLIENT_ID = "anthropic-radar"
+CLIENT_ID = "pump-anthropic-radar"
 SCOPE = "radar"
 DEFAULT_API_BASE = "https://api.pump.co"
 DEFAULT_APP_BASE = "https://app.pump.co"
-USER_AGENT = f"anthropic-radar/{__version__}"
+USER_AGENT = f"pump-anthropic-radar/{__version__}"
 LOGIN_TIMEOUT_SECONDS = 180
 
 
@@ -55,12 +55,12 @@ class PumpCredentials:
 
 
 def credentials_path() -> Path:
-    override = os.environ.get("ANTHROPIC_RADAR_CONFIG_DIR")
+    override = os.environ.get("PUMP_ANTHROPIC_RADAR_CONFIG_DIR")
     if override:
         return Path(override) / "credentials.json"
     xdg = os.environ.get("XDG_CONFIG_HOME")
     root = Path(xdg) if xdg else Path.home() / ".config"
-    return root / "anthropic-radar" / "credentials.json"
+    return root / "pump-anthropic-radar" / "credentials.json"
 
 
 def generate_pkce() -> tuple[str, str]:
@@ -99,7 +99,7 @@ def build_authorize_url(
 
 def _success_page() -> bytes:
     return (
-        b"<!DOCTYPE html><html><head><meta charset='utf-8'><title>anthropic-radar</title></head>"
+        b"<!DOCTYPE html><html><head><meta charset='utf-8'><title>pump-anthropic-radar</title></head>"
         b'<body style="font-family: system-ui, sans-serif; max-width: 32rem; margin: 4rem auto;">'
         b"<h1>You are logged in</h1><p>Return to the terminal. You can close this window.</p>"
         b"</body></html>"
@@ -139,7 +139,7 @@ class _CallbackServer(ThreadingHTTPServer):
 def _start_callback_server() -> tuple[_CallbackServer, threading.Thread]:
     server = _CallbackServer()
     thread = threading.Thread(
-        target=server.serve_forever, name="anthropic-radar-login", daemon=True
+        target=server.serve_forever, name="pump-anthropic-radar-login", daemon=True
     )
     thread.start()
     return server, thread
@@ -258,7 +258,7 @@ def load_credentials(path: Path | None = None) -> PumpCredentials | None:
     token = payload.get("access_token")
     if not isinstance(token, str) or not token:
         raise LoginError(
-            f"{destination} does not contain a token. Run `anthropic-radar login` again."
+            f"{destination} does not contain a token. Run `pump-anthropic-radar login` again."
         )
     upload_id = payload.get("upload_id")
     return PumpCredentials(
@@ -335,7 +335,7 @@ def login(
         returned_state = (query.get("state") or [""])[0]
         if not secrets.compare_digest(returned_state, state):
             raise LoginError(
-                "Login response failed the state check. Run `anthropic-radar login` again."
+                "Login response failed the state check. Run `pump-anthropic-radar login` again."
             )
         code = (query.get("code") or [""])[0]
         if not code:
@@ -362,7 +362,7 @@ def main(argv: list[str] | None = None) -> int:
     """``python -m anthropic_radar.pump_login login|logout|status``."""
     import argparse
 
-    parser = argparse.ArgumentParser(prog="anthropic-radar")
+    parser = argparse.ArgumentParser(prog="pump-anthropic-radar")
     sub = parser.add_subparsers(dest="command", required=True)
 
     login_parser = sub.add_parser("login", help="Log in with Pump and store the upload token.")
@@ -380,7 +380,7 @@ def main(argv: list[str] | None = None) -> int:
         else:
             creds = load_credentials()
             if creds is None:
-                print("Not logged in. Run `anthropic-radar login`.")
+                print("Not logged in. Run `pump-anthropic-radar login`.")
                 return 1
             upload = f" upload {creds.upload_id}" if creds.upload_id else ""
             print(f"Logged in to {creds.api_base}.{upload} Token expires {creds.expires_at}.")

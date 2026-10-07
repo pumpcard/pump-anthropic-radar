@@ -1,4 +1,4 @@
-"""Resource scanners for anthropic-radar."""
+"""Resource scanners for pump-anthropic-radar."""
 
 from anthropic_radar.scanners.api_keys import scan_api_keys
 from anthropic_radar.scanners.org import (
