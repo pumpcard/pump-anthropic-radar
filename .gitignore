@@ -7,3 +7,5 @@ dist/
 build/
 report.csv
 usage.csv
+.DS_Store
+out/
