@@ -101,10 +101,11 @@ Flags follow the Radar suite convention: `--output/-o` selects `table` or `json`
 `--out-file` writes the JSON payload, `--csv-dir` writes per-resource CSVs.
 `--upload` writes `report.csv` (costs) and `usage.csv` (token usage) and pushes
 them with the token from `pump-anthropic-radar login`. Costs upload as role `billing`;
-usage uploads as role `inventory`. `--upload-token` does the same with a one-shot
-token and overrides the stored login. `--report-file` chooses the cost CSV path;
-with `--csv-dir` and no `--report-file` it is `{csv-dir}/report.csv`. `usage.csv`
-is written next to it.
+usage uploads as role `inventory`. An empty usage scan still writes and uploads a
+header-only `usage.csv`, because Pump starts analysis only after both objects exist.
+`--upload-token` does the same with a one-shot token and overrides the stored login.
+`--report-file` chooses the cost CSV path; with `--csv-dir` and no `--report-file`
+it is `{csv-dir}/report.csv`. `usage.csv` is written next to it.
 
 `--lookback` is the usage window (default 7 days). The cost scan and the Pump
 cost report use `max(lookback, 30)` days, matching `RunConfig.cost_lookback_days`.
