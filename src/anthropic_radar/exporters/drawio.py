@@ -137,7 +137,7 @@ def export_drawio(result: RunResult, out_path: str | Path) -> Path:
     body = "".join(cells)
     xml = (
         '<?xml version="1.0" encoding="UTF-8"?>'
-        '<mxfile host="anthropic-radar"><diagram name="Anthropic Org">'
+        '<mxfile host="pump-anthropic-radar"><diagram name="Anthropic Org">'
         '<mxGraphModel dx="800" dy="600" grid="1" gridSize="10" guides="1" tooltips="1" '
         'connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1400" '
         'pageHeight="900" math="0" shadow="0">'

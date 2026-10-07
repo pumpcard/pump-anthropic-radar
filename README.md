@@ -1,4 +1,4 @@
-# anthropic-radar
+# pump-anthropic-radar
 
 **Anthropic infrastructure FinOps SDK** — part of the [Hyperscaler Radar](https://github.com/gomorsmi) suite.
 
@@ -35,7 +35,7 @@ Every org-visibility endpoint in the Anthropic API lives behind the Admin API.
 That requires an Admin key (`sk-ant-admin01-...`) from Console → Settings → Admin Keys.
 A standard key (`sk-ant-api03-...`) cannot list users, workspaces, keys, usage, or cost.
 
-* `api_key` only → `anthropic-radar` runs, and every org-level table comes back empty.
+* `api_key` only → `pump-anthropic-radar` runs, and every org-level table comes back empty.
   That is a supported "no access" state, so the CLI stays usable for a quick check.
 * `admin_key` set (env `ANTHROPIC_ADMIN_KEY` or `--admin-key`) → full org-wide scan.
   Pump upload needs this key, because the cost report is admin-only.
@@ -68,39 +68,39 @@ result = Runner.run_sync(client, config)
 
 ```bash
 # Full scan — findings table to stdout
-anthropic-radar run
+pump-anthropic-radar run
 
 # CSVs + draw.io diagram
-anthropic-radar run --csv-dir ./out --drawio-file arch.drawio
+pump-anthropic-radar run --csv-dir ./out --drawio-file arch.drawio
 
 # JSON instead of a table
-anthropic-radar run --output json --out-file scan.json
+pump-anthropic-radar run --output json --out-file scan.json
 
 # Admin key for org-wide data (or set $ANTHROPIC_ADMIN_KEY)
-anthropic-radar run --admin-key sk-ant-admin01-... --csv-dir ./out
+pump-anthropic-radar run --admin-key sk-ant-admin01-... --csv-dir ./out
 
 # Findings only
-anthropic-radar findings
+pump-anthropic-radar findings
 
 # Scope to a workspace, 14-day usage lookback
-anthropic-radar run --workspace wrkspc_xxx --lookback 14
+pump-anthropic-radar run --workspace wrkspc_xxx --lookback 14
 
 # Log in to Pump, then push the org cost report (admin key required)
-anthropic-radar login
-anthropic-radar run --admin-key sk-ant-admin01-... --upload
+pump-anthropic-radar login
+pump-anthropic-radar run --admin-key sk-ant-admin01-... --upload
 
 # Check or forget the stored Pump token
-anthropic-radar status
-anthropic-radar logout
+pump-anthropic-radar status
+pump-anthropic-radar logout
 
 # Print the version
-anthropic-radar version
+pump-anthropic-radar version
 ```
 
 Flags follow the Radar suite convention: `--output/-o` selects `table` or `json`,
 `--out-file` writes the JSON payload, `--csv-dir` writes per-resource CSVs.
 `--upload` writes `report.csv` (costs) and `usage.csv` (token usage) and pushes
-them with the token from `anthropic-radar login`. Costs upload as role `billing`;
+them with the token from `pump-anthropic-radar login`. Costs upload as role `billing`;
 usage uploads as role `inventory`. `--upload-token` does the same with a one-shot
 token and overrides the stored login. `--report-file` chooses the cost CSV path;
 with `--csv-dir` and no `--report-file` it is `{csv-dir}/report.csv`. `usage.csv`
@@ -118,13 +118,13 @@ The token is exchanged for a presigned S3 URL. Only the cost and usage CSVs leav
 1. Log in. This runs the browser OAuth flow and stores an upload token locally:
 
    ```bash
-   anthropic-radar login
+   pump-anthropic-radar login
    ```
 
 2. Scan and upload with an Anthropic admin key:
 
    ```bash
-   anthropic-radar run --admin-key sk-ant-admin01-... --upload
+   pump-anthropic-radar run --admin-key sk-ant-admin01-... --upload
    ```
 
    This scans the org, pulls daily costs from `/v1/organizations/cost_report`,
@@ -134,11 +134,11 @@ The token is exchanged for a presigned S3 URL. Only the cost and usage CSVs leav
    choose where the cost CSV is written.
 3. Pump detects the upload and runs its analysis.
 
-`anthropic-radar status` shows whether a token is stored (not the token itself).
-`anthropic-radar logout` deletes it. A one-shot token still works without logging in:
+`pump-anthropic-radar status` shows whether a token is stored (not the token itself).
+`pump-anthropic-radar logout` deletes it. A one-shot token still works without logging in:
 
 ```bash
-anthropic-radar run --admin-key sk-ant-admin01-... --upload-token <TOKEN>
+pump-anthropic-radar run --admin-key sk-ant-admin01-... --upload-token <TOKEN>
 ```
 
 `report.csv` columns, same shape as the other Pump radars:
@@ -159,7 +159,7 @@ sends the report there. Override it with `--api-base` or `PUMP_API_BASE`
 (default `https://api.pump.co`):
 
 ```bash
-anthropic-radar run --admin-key sk-ant-admin01-... --upload-token <TOKEN> --api-base http://localhost:8001
+pump-anthropic-radar run --admin-key sk-ant-admin01-... --upload-token <TOKEN> --api-base http://localhost:8001
 ```
 
 `anthropic_radar/upload.py` posts `{api_base}/api/v1/estimate/radar/urls` once per
@@ -214,7 +214,7 @@ src/anthropic_radar/
 ├── exporters/           # CSV + draw.io
 ├── pump_login.py        # `login` / `logout` / `status` (OAuth + PKCE)
 ├── upload.py            # Pump presigned-URL upload (billing + inventory)
-└── cli.py               # anthropic-radar CLI
+└── cli.py               # pump-anthropic-radar CLI
 ```
 
 ---
@@ -232,18 +232,18 @@ uv pip install -e ".[dev]"
 The package lives in `src/anthropic_radar`, including `cli.py` and `pump_login.py`.
 
 ```bash
-./anthropic-radar --help
-./anthropic-radar login
-./anthropic-radar status
-./anthropic-radar logout
-./anthropic-radar run --upload
-./anthropic-radar version
+./pump-anthropic-radar --help
+./pump-anthropic-radar login
+./pump-anthropic-radar status
+./pump-anthropic-radar logout
+./pump-anthropic-radar run --upload
+./pump-anthropic-radar version
 ```
 
 `login` opens a browser for the Pump OAuth flow and writes the token to
-`$XDG_CONFIG_HOME/anthropic-radar/credentials.json`, or
-`~/.config/anthropic-radar/credentials.json` when `XDG_CONFIG_HOME` is unset.
-`ANTHROPIC_RADAR_CONFIG_DIR` overrides that directory. `PUMP_API_BASE` and
+`$XDG_CONFIG_HOME/pump-anthropic-radar/credentials.json`, or
+`~/.config/pump-anthropic-radar/credentials.json` when `XDG_CONFIG_HOME` is unset.
+`PUMP_ANTHROPIC_RADAR_CONFIG_DIR` overrides that directory. `PUMP_API_BASE` and
 `PUMP_APP_BASE` override the Pump origins, as do `--api-base` and `--app-base`.
 Scans read `ANTHROPIC_API_KEY` and, for org-wide data, `ANTHROPIC_ADMIN_KEY`.
 
@@ -256,7 +256,7 @@ python -m unittest tests.test_pump_login
 
 ## Part of the Hyperscaler Radar suite
 
-`aws-radar` · `gcp-radar` · `azure-radar` · `oci-radar` · `openai-radar` · `anthropic-radar` · `gemini-radar` · `datadog-radar`
+`aws-radar` · `gcp-radar` · `azure-radar` · `oci-radar` · `openai-radar` · `pump-anthropic-radar` · `gemini-radar` · `datadog-radar`
 
 ## License
 

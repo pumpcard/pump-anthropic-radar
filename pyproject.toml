@@ -34,7 +34,7 @@ dependencies = [
 
 [project.optional-dependencies]
 # Export formats — CSV and draw.io ship in the base install; these are kept as
-# no-op aliases so existing `anthropic-radar[csv]` / `[drawio]` pins keep resolving.
+# no-op aliases so existing `pump-anthropic-radar[csv]` / `[drawio]` pins keep resolving.
 csv = []
 drawio = []
 
@@ -56,7 +56,7 @@ Repository = "https://github.com/pumpcard/pump-anthropic-radar"
 "Bug Tracker" = "https://github.com/pumpcard/pump-anthropic-radar/issues"
 
 [project.scripts]
-anthropic-radar = "anthropic_radar.cli:app"
+pump-anthropic-radar = "anthropic_radar.cli:app"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/anthropic_radar"]

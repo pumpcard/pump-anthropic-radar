@@ -55,7 +55,7 @@ def _sample_result() -> RunResult:
 def test_version() -> None:
     result = runner.invoke(app, ["version"])
     assert result.exit_code == 0
-    assert "anthropic-radar 0.0.1" in result.stdout
+    assert "pump-anthropic-radar 0.0.1" in result.stdout
 
 
 def test_run_rejects_an_unknown_output() -> None:
@@ -365,7 +365,7 @@ def _save_login(
 
     from anthropic_radar.pump_login import PumpCredentials, save_credentials
 
-    monkeypatch.setenv("ANTHROPIC_RADAR_CONFIG_DIR", str(tmp_path))
+    monkeypatch.setenv("PUMP_ANTHROPIC_RADAR_CONFIG_DIR", str(tmp_path))
     if expires_at is None:
         expires_at = (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat()
     save_credentials(
@@ -462,12 +462,12 @@ def test_run_upload_without_login_stops_before_the_scan(
     monkeypatch: pytest.MonkeyPatch, tmp_path
 ) -> None:
     seen = _patch_run(monkeypatch, RunResult())
-    monkeypatch.setenv("ANTHROPIC_RADAR_CONFIG_DIR", str(tmp_path))
+    monkeypatch.setenv("PUMP_ANTHROPIC_RADAR_CONFIG_DIR", str(tmp_path))
 
     result = runner.invoke(app, ["run", "--upload"])
 
     assert result.exit_code == 1
-    assert "anthropic-radar login" in result.stdout
+    assert "pump-anthropic-radar login" in result.stdout
     assert seen == []
 
 
@@ -486,7 +486,7 @@ def test_run_upload_rejects_an_expired_login(monkeypatch: pytest.MonkeyPatch, tm
 
 
 def test_status_and_logout_round_trip(monkeypatch: pytest.MonkeyPatch, tmp_path) -> None:
-    monkeypatch.setenv("ANTHROPIC_RADAR_CONFIG_DIR", str(tmp_path))
+    monkeypatch.setenv("PUMP_ANTHROPIC_RADAR_CONFIG_DIR", str(tmp_path))
 
     missing = runner.invoke(app, ["status"])
     assert missing.exit_code == 1

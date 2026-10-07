@@ -1,4 +1,4 @@
-"""Exporters for anthropic-radar."""
+"""Exporters for pump-anthropic-radar."""
 
 from anthropic_radar.exporters.csv import export_csv
 from anthropic_radar.exporters.drawio import export_drawio

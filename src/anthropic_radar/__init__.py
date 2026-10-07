@@ -1,4 +1,4 @@
-"""anthropic-radar: FinOps scanner for Anthropic infrastructure.
+"""pump-anthropic-radar: FinOps scanner for Anthropic infrastructure.
 
 Part of the Hyperscaler Radar suite.
 """
