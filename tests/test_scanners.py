@@ -76,31 +76,36 @@ def test_usage_and_cost_parse_admin_payloads() -> None:
 
 
 def test_daily_windows_include_september_on_an_october_run() -> None:
-    """30 days ending 9 October starts 9 September, and must be two requests."""
+    """30 days ending 9 October starts 9 September, in week-sized batches."""
     now = datetime(2026, 10, 8, 18, 30, tzinfo=timezone.utc)
     assert _daily_windows(30, now=now) == [
-        ("2026-09-09T00:00:00Z", "2026-10-01T00:00:00Z", 22),
-        ("2026-10-01T00:00:00Z", "2026-10-09T00:00:00Z", 8),
+        ("2026-09-09T00:00:00Z", "2026-09-16T00:00:00Z", 7),
+        ("2026-09-16T00:00:00Z", "2026-09-23T00:00:00Z", 7),
+        ("2026-09-23T00:00:00Z", "2026-09-30T00:00:00Z", 7),
+        ("2026-09-30T00:00:00Z", "2026-10-01T00:00:00Z", 1),
+        ("2026-10-01T00:00:00Z", "2026-10-08T00:00:00Z", 7),
+        ("2026-10-08T00:00:00Z", "2026-10-09T00:00:00Z", 1),
     ]
 
 
 def test_daily_windows_cover_a_lookback_longer_than_one_month() -> None:
     now = datetime(2026, 10, 8, 18, 30, tzinfo=timezone.utc)
     windows = _daily_windows(40, now=now)
-    assert [window[0] for window in windows] == [
-        "2026-08-30T00:00:00Z",
-        "2026-09-01T00:00:00Z",
-        "2026-10-01T00:00:00Z",
-    ]
+    assert windows[0][0] == "2026-08-30T00:00:00Z"
+    assert "2026-09-01T00:00:00Z" in [window[0] for window in windows]
+    assert "2026-10-01T00:00:00Z" in [window[0] for window in windows]
     assert windows[-1][1] == "2026-10-09T00:00:00Z"
     assert all(prev[1] == nxt[0] for prev, nxt in pairwise(windows))
-    assert all(1 <= limit <= 31 for _, _, limit in windows)
+    assert all(1 <= limit <= 7 for _, _, limit in windows)
 
 
 def test_daily_windows_cross_the_year_boundary() -> None:
     now = datetime(2027, 1, 5, 12, tzinfo=timezone.utc)
     assert _daily_windows(30, now=now) == [
-        ("2026-12-07T00:00:00Z", "2027-01-01T00:00:00Z", 25),
+        ("2026-12-07T00:00:00Z", "2026-12-14T00:00:00Z", 7),
+        ("2026-12-14T00:00:00Z", "2026-12-21T00:00:00Z", 7),
+        ("2026-12-21T00:00:00Z", "2026-12-28T00:00:00Z", 7),
+        ("2026-12-28T00:00:00Z", "2027-01-01T00:00:00Z", 4),
         ("2027-01-01T00:00:00Z", "2027-01-06T00:00:00Z", 5),
     ]
 
@@ -154,11 +159,14 @@ def test_usage_scan_keeps_every_month_in_the_lookback(monkeypatch) -> None:
     usage = scan_usage(client, lookback_days=30)
     months = {bucket.starting_at.month for bucket in usage if bucket.starting_at}
     assert months == {9, 10}
-    assert [bucket.model for bucket in usage] == ["claude-sonnet", "claude-haiku", "claude-opus"]
+    assert {bucket.model for bucket in usage} == {"claude-sonnet", "claude-haiku", "claude-opus"}
+    spans = [(query["starting_at"], query["ending_at"]) for query in seen if "page" not in query]
+    assert spans[0] == ("2026-09-09T00:00:00Z", "2026-09-16T00:00:00Z")
+    assert spans[-1] == ("2026-10-08T00:00:00Z", "2026-10-09T00:00:00Z")
+    assert all(prev[1] == nxt[0] for prev, nxt in pairwise(spans))
+    assert all(int(query["limit"]) <= 7 for query in seen if "page" not in query)
     september = [query for query in seen if str(query["starting_at"]).startswith("2026-09")]
-    assert september[0]["limit"] == 22
     assert september[1]["page"] == "sept-page-2"
-    assert seen[-1]["ending_at"] == "2026-10-09T00:00:00Z"
 
 
 def test_api_key_scan_can_scope_a_workspace() -> None:

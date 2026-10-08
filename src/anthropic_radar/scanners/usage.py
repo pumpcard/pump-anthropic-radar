@@ -12,7 +12,9 @@ from typing import Any
 from anthropic_radar.client import RadarClient
 from anthropic_radar.models.base import ClaudeCodeUsageBucket, CostBucket, UsageBucket
 
-# A 1d usage page holds at most this many buckets. The API default is 7.
+# A 1d page holds at most 31 buckets. Ask for a week at a time so a grouped
+# month (model, workspace, api key, service tier) finishes inside the read timeout.
+_DAILY_BATCH_DAYS = 7
 _DAILY_PAGE_LIMIT = 31
 
 
@@ -49,8 +51,9 @@ def _daily_windows(
     """Split a daily lookback into requests the usage API will fill completely.
 
     A ``1d`` response holds at most 31 buckets, and defaults to 7 when ``limit``
-    is omitted. A range that crosses a UTC month boundary returns only the
-    month of ``ending_at``, so each month is requested on its own.
+    is omitted. Each request stays inside one UTC month and at most
+    ``_DAILY_BATCH_DAYS`` long, so September is included and a grouped month
+    does not sit on the connection until the read times out.
     """
     start, end = _day_bounds(lookback_days, now=now)
     windows: list[tuple[str, str, int]] = []
@@ -59,7 +62,7 @@ def _daily_windows(
         piece_end = min(
             _next_month(cursor.replace(day=1)),
             end,
-            cursor + timedelta(days=_DAILY_PAGE_LIMIT),
+            cursor + timedelta(days=_DAILY_BATCH_DAYS),
         )
         windows.append((_stamp(cursor), _stamp(piece_end), (piece_end - cursor).days))
         cursor = piece_end

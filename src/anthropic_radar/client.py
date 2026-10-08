@@ -10,6 +10,8 @@ import requests
 
 API_BASE = "https://api.anthropic.com"
 ANTHROPIC_VERSION = "2023-06-01"
+# Usage and cost reports aggregate many grouped rows. A 30s read times out.
+DEFAULT_TIMEOUT = 120.0
 
 
 class AnthropicRadarError(RuntimeError):
@@ -34,7 +36,7 @@ class RadarClient:
         api_key: str | None = None,
         admin_key: str | None = None,
         base_url: str = API_BASE,
-        timeout: float = 30.0,
+        timeout: float = DEFAULT_TIMEOUT,
     ) -> None:
         self.api_key = api_key or os.environ.get("ANTHROPIC_API_KEY")
         self.admin_key = admin_key or os.environ.get("ANTHROPIC_ADMIN_KEY")
