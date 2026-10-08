@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import json
+import os
 import sys
 import time
 from pathlib import Path
 
 import typer
 from rich.console import Console
+from rich.status import Status
 from rich.table import Table
 
 from anthropic_radar import __version__
@@ -19,6 +21,76 @@ from anthropic_radar.pump_login import login as pump_login
 from anthropic_radar.runner import RunConfig, Runner, RunResult
 
 console = Console()
+
+# The active loading notification, if a command is inside an API wait.
+# RadarClient.on_request updates the top of this stack with the path in flight.
+_waits: list[_ApiWait] = []
+
+
+class _ApiWait:
+    """Loading notification shown while a command is blocked on an HTTP API.
+
+    A real terminal gets a spinner on stderr. Pipes, JSON output, and tests
+    get one line on stderr instead, so a payload written to stdout stays intact.
+    """
+
+    def __init__(self, message: str) -> None:
+        self._message = message
+        self._console = Console(stderr=True, highlight=False)
+        self._status: Status | None = None
+
+    def __enter__(self) -> _ApiWait:
+        _waits.append(self)
+        try:
+            if _stderr_is_tty():
+                self._status = self._console.status(self._message)
+                self._status.start()
+            else:
+                self._console.print(self._message)
+        except Exception:
+            _waits.pop()
+            raise
+        return self
+
+    def update(self, message: str) -> None:
+        if message == self._message:
+            return
+        self._message = message
+        if self._status is not None:
+            self._status.update(message)
+        else:
+            self._console.print(message)
+
+    def __exit__(self, exc_type: object, exc: object, tb: object) -> None:
+        try:
+            if self._status is not None:
+                self._status.stop()
+        finally:
+            if self in _waits:
+                _waits.remove(self)
+
+
+def _stderr_is_tty() -> bool:
+    """True when stderr can show an in-place spinner.
+
+    ``Console.is_terminal`` treats a non-empty ``FORCE_COLOR`` as a terminal,
+    including ``FORCE_COLOR=0``, so it is the wrong signal here.
+    """
+    isatty = getattr(sys.stderr, "isatty", None)
+    try:
+        tty = bool(isatty()) if callable(isatty) else False
+    except (ValueError, OSError):
+        return False
+    if not tty:
+        return False
+    term = os.environ.get("TERM", "")
+    return term.lower() not in ("", "dumb", "unknown")
+
+
+def _on_api_request(path: str) -> None:
+    if _waits:
+        _waits[-1].update(f"Waiting on Anthropic API {path} …")
+
 
 app = typer.Typer(
     add_completion=False,
@@ -37,7 +109,7 @@ SEVERITY_ORDER = {"critical": 0, "high": 1, "medium": 2, "low": 3, "info": 4}
 
 
 def _build_client(api_key: str | None, admin_key: str | None) -> RadarClient:
-    return RadarClient(api_key=api_key, admin_key=admin_key)
+    return RadarClient(api_key=api_key, admin_key=admin_key, on_request=_on_api_request)
 
 
 def _render_inventory(result: RunResult) -> None:
@@ -200,11 +272,12 @@ def _write_and_maybe_upload_report(
 
     destination = _report_destination(report_file, csv_dir)
     try:
-        report = fetch_cost_report(
-            client,
-            lookback_days=lookback_days,
-            workspace_id=workspace_id,
-        )
+        with _ApiWait("Waiting on Anthropic API …"):
+            report = fetch_cost_report(
+                client,
+                lookback_days=lookback_days,
+                workspace_id=workspace_id,
+            )
     except (ReportError, AnthropicRadarError) as exc:
         console.print(f"[bold red]Report failed:[/bold red] {exc}")
         raise typer.Exit(code=1) from exc
@@ -299,7 +372,8 @@ def run(
 
     started = time.time()
     try:
-        result = Runner.run_sync(client, config)
+        with _ApiWait("Waiting on Anthropic API …"):
+            result = Runner.run_sync(client, config)
     except AnthropicRadarError as exc:
         console.print(f"[bold red]Scan failed:[/bold red] {exc}")
         raise typer.Exit(code=1) from exc
@@ -369,7 +443,8 @@ def findings(
         cost_lookback_days=history_days,
     )
     try:
-        result = Runner.run_sync(client, config)
+        with _ApiWait("Waiting on Anthropic API …"):
+            result = Runner.run_sync(client, config)
     except AnthropicRadarError as exc:
         console.print(f"[bold red]Scan failed:[/bold red] {exc}")
         raise typer.Exit(code=1) from exc

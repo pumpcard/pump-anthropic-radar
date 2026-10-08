@@ -78,6 +78,54 @@ def test_paginate_follows_next_page_then_after_id(monkeypatch: pytest.MonkeyPatc
     assert calls[2]["after_id"] == "b"
 
 
+def test_get_notifies_before_the_request(monkeypatch: pytest.MonkeyPatch) -> None:
+    order: list[str] = []
+
+    def fake_get(
+        url: str, headers: dict | None = None, params: dict | None = None, timeout: float = 0
+    ):
+        order.append("http")
+        return _Resp({"id": "org_1"})
+
+    monkeypatch.setattr("anthropic_radar.client.requests.get", fake_get)
+    client = RadarClient(admin_key="sk-ant-admin", on_request=order.append)
+    client.get("/v1/organizations/me")
+
+    assert order == ["/v1/organizations/me", "http"]
+
+
+def test_missing_admin_key_does_not_notify() -> None:
+    seen: list[str] = []
+    client = RadarClient(api_key="sk-ant-api", on_request=seen.append)
+    with pytest.raises(AnthropicRadarError, match="Admin API key"):
+        client.get("/v1/organizations/me")
+    assert seen == []
+
+
+def test_paginate_notifies_once_per_page(monkeypatch: pytest.MonkeyPatch) -> None:
+    pages = [
+        {"data": [{"id": "a"}], "has_more": True, "next_page": "p2"},
+        {"data": [{"id": "b"}], "has_more": False},
+    ]
+    seen: list[str] = []
+    fetched = 0
+
+    def fake_get(
+        url: str, headers: dict | None = None, params: dict | None = None, timeout: float = 0
+    ):
+        nonlocal fetched
+        payload = pages[fetched]
+        fetched += 1
+        return _Resp(payload)
+
+    monkeypatch.setattr("anthropic_radar.client.requests.get", fake_get)
+    client = RadarClient(admin_key="sk-ant-admin", on_request=seen.append)
+    ids = [item["id"] for item in client.paginate("/v1/organizations/users")]
+
+    assert ids == ["a", "b"]
+    assert seen == ["/v1/organizations/users", "/v1/organizations/users"]
+
+
 def test_http_error_is_wrapped(monkeypatch: pytest.MonkeyPatch) -> None:
     def fake_get(
         url: str, headers: dict | None = None, params: dict | None = None, timeout: float = 0

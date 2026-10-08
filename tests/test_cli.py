@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 import json
+import sys
 from typing import Any
 
 import pytest
 from typer.testing import CliRunner
 
 from anthropic_radar.cli import app
-from anthropic_radar.client import AnthropicRadarError
+from anthropic_radar.client import AnthropicRadarError, RadarClient
 from anthropic_radar.models.base import (
     Finding,
     Organization,
@@ -84,6 +85,8 @@ def test_run_json_includes_the_scan_payload(monkeypatch: pytest.MonkeyPatch) -> 
 
     assert result.exit_code == 0, result.stdout
     payload = json.loads(result.stdout)
+    assert "Waiting on Anthropic API" not in result.stdout
+    assert "Waiting on Anthropic API" in result.stderr
     assert payload["organization"]["name"] == "Acme"
     assert payload["workspaces"][0]["id"] == "wrkspc_1"
     assert payload["usage"][0]["total_tokens"] == 7
@@ -134,6 +137,8 @@ def test_findings_command_prints_json(monkeypatch: pytest.MonkeyPatch) -> None:
 
     assert result.exit_code == 0, result.stdout
     payload = json.loads(result.stdout)
+    assert "Waiting on Anthropic API" not in result.stdout
+    assert "Waiting on Anthropic API" in result.stderr
     assert payload[0]["rule_id"] == "KEY_002"
     assert payload[0]["severity"] == "INFO"
 
@@ -401,6 +406,108 @@ def test_run_reports_upload_failure(monkeypatch: pytest.MonkeyPatch, tmp_path) -
     assert destination.is_file()
 
 
+def test_run_names_the_api_it_is_waiting_on(monkeypatch: pytest.MonkeyPatch) -> None:
+    def fake_run(client: RadarClient, config: RunConfig | None = None) -> RunResult:
+        assert client.on_request is not None
+        client.on_request("/v1/organizations/me")
+        client.on_request("/v1/organizations/usage_report/messages")
+        client.on_request("/v1/organizations/usage_report/messages")
+        return RunResult()
+
+    monkeypatch.setattr("anthropic_radar.cli.Runner.run_sync", fake_run)
+    result = runner.invoke(app, ["run", "--admin-key", "sk-ant-admin"])
+
+    assert result.exit_code == 0, result.stdout
+    assert "Waiting on Anthropic API …" in result.stderr
+    assert "Waiting on Anthropic API /v1/organizations/me …" in result.stderr
+    assert "Waiting on Anthropic API /v1/organizations/usage_report/messages …" in result.stderr
+    # A second page of the same endpoint does not repeat the line.
+    assert result.stderr.count("usage_report/messages") == 1
+    assert "Waiting on Anthropic API" not in result.stdout
+
+
+def test_run_notifies_while_the_cost_report_waits(
+    monkeypatch: pytest.MonkeyPatch, tmp_path
+) -> None:
+    _patch_run(monkeypatch, RunResult())
+
+    def fake_fetch(client: RadarClient, *, lookback_days: int, workspace_id: str | None) -> object:
+        from anthropic_radar.scanners.report import CostReport
+
+        assert client.on_request is not None
+        client.on_request("/v1/organizations/cost_report")
+        return CostReport(
+            rows=[
+                {
+                    "Date": "2026-01-01",
+                    "ProjectID": "wrkspc_1",
+                    "LineItem": "tokens",
+                    "Amount": "1.000000",
+                    "Currency": "USD",
+                }
+            ]
+        )
+
+    monkeypatch.setattr("anthropic_radar.scanners.report.fetch_cost_report", fake_fetch)
+    monkeypatch.setattr("anthropic_radar.upload.upload_csvs", lambda **kwargs: None)
+
+    result = runner.invoke(
+        app,
+        [
+            "run",
+            "--admin-key",
+            "sk-ant-admin",
+            "--upload-token",
+            "tok",
+            "--report-file",
+            str(tmp_path / "report.csv"),
+        ],
+    )
+
+    assert result.exit_code == 0, result.stdout
+    assert "Waiting on Anthropic API /v1/organizations/cost_report …" in result.stderr
+    assert "Waiting on Anthropic API" not in result.stdout
+
+
+def test_api_wait_uses_a_spinner_on_a_terminal(monkeypatch: pytest.MonkeyPatch) -> None:
+    import io
+
+    from anthropic_radar import cli as cli_mod
+
+    class _Tty(io.StringIO):
+        def isatty(self) -> bool:
+            return True
+
+    buf = _Tty()
+    monkeypatch.setattr(sys, "stderr", buf)
+    monkeypatch.setenv("TERM", "xterm-256color")
+
+    with cli_mod._ApiWait("Waiting on Anthropic API …"):
+        cli_mod._on_api_request("/v1/organizations/me")
+        cli_mod._on_api_request("/v1/organizations/me")
+
+    assert cli_mod._waits == []
+    rendered = buf.getvalue()
+    assert "Waiting on Anthropic API /v1/organizations/me" in rendered
+    assert rendered.count("/v1/organizations/me") == 1
+
+
+def test_api_wait_stops_when_the_call_fails(monkeypatch: pytest.MonkeyPatch) -> None:
+    import io
+
+    from anthropic_radar import cli as cli_mod
+
+    buf = io.StringIO()
+    monkeypatch.setattr(sys, "stderr", buf)
+
+    with pytest.raises(RuntimeError, match="down"):
+        with cli_mod._ApiWait("Waiting on Anthropic API …"):
+            raise RuntimeError("down")
+
+    assert cli_mod._waits == []
+    assert "Waiting on Anthropic API …" in buf.getvalue()
+
+
 def test_run_reports_scanner_failures(monkeypatch: pytest.MonkeyPatch) -> None:
     _patch_run(monkeypatch, AnthropicRadarError("admin key rejected"))
 
@@ -525,6 +632,7 @@ def test_run_upload_without_login_stops_before_the_scan(
 
     assert result.exit_code == 1
     assert "pump-anthropic-radar login" in result.stdout
+    assert "Waiting on Anthropic API" not in result.stderr
     assert seen == []
 
 

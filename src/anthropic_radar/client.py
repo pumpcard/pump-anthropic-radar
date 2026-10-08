@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import os
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from typing import Any
 
 import requests
@@ -37,11 +37,16 @@ class RadarClient:
         admin_key: str | None = None,
         base_url: str = API_BASE,
         timeout: float = DEFAULT_TIMEOUT,
+        *,
+        on_request: Callable[[str], None] | None = None,
     ) -> None:
         self.api_key = api_key or os.environ.get("ANTHROPIC_API_KEY")
         self.admin_key = admin_key or os.environ.get("ANTHROPIC_ADMIN_KEY")
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
+        # Called with the request path immediately before the HTTP call, so a
+        # CLI can show a loading notification while the Admin API is in flight.
+        self.on_request = on_request
 
     @property
     def has_admin_access(self) -> bool:
@@ -71,6 +76,8 @@ class RadarClient:
                 f"{path} requires an Admin API key (sk-ant-admin01-...). "
                 "Only org admins can provision one, via Console > Settings > Admin Keys."
             )
+        if self.on_request is not None:
+            self.on_request(path)
         resp = requests.get(
             f"{self.base_url}{path}",
             headers=self._headers(admin=admin),
