@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
+from itertools import pairwise
+
 from anthropic_radar.client import RadarClient
 from anthropic_radar.scanners.api_keys import scan_api_keys
 from anthropic_radar.scanners.org import scan_organization, scan_users
-from anthropic_radar.scanners.usage import scan_cost, scan_usage
+from anthropic_radar.scanners.usage import _daily_windows, scan_cost, scan_usage
 
 
 def test_scanners_without_an_admin_key_are_empty() -> None:
@@ -70,6 +73,100 @@ def test_usage_and_cost_parse_admin_payloads() -> None:
     cost = scan_cost(client, lookback_days=1)
     assert cost[0].amount_usd == 2.5
     assert cost[0].description == "tokens"
+
+
+def test_daily_windows_include_september_on_an_october_run() -> None:
+    """30 days ending 9 October starts 9 September, in week-sized batches."""
+    now = datetime(2026, 10, 8, 18, 30, tzinfo=timezone.utc)
+    assert _daily_windows(30, now=now) == [
+        ("2026-09-09T00:00:00Z", "2026-09-16T00:00:00Z", 7),
+        ("2026-09-16T00:00:00Z", "2026-09-23T00:00:00Z", 7),
+        ("2026-09-23T00:00:00Z", "2026-09-30T00:00:00Z", 7),
+        ("2026-09-30T00:00:00Z", "2026-10-01T00:00:00Z", 1),
+        ("2026-10-01T00:00:00Z", "2026-10-08T00:00:00Z", 7),
+        ("2026-10-08T00:00:00Z", "2026-10-09T00:00:00Z", 1),
+    ]
+
+
+def test_daily_windows_cover_a_lookback_longer_than_one_month() -> None:
+    now = datetime(2026, 10, 8, 18, 30, tzinfo=timezone.utc)
+    windows = _daily_windows(40, now=now)
+    assert windows[0][0] == "2026-08-30T00:00:00Z"
+    assert "2026-09-01T00:00:00Z" in [window[0] for window in windows]
+    assert "2026-10-01T00:00:00Z" in [window[0] for window in windows]
+    assert windows[-1][1] == "2026-10-09T00:00:00Z"
+    assert all(prev[1] == nxt[0] for prev, nxt in pairwise(windows))
+    assert all(1 <= limit <= 7 for _, _, limit in windows)
+
+
+def test_daily_windows_cross_the_year_boundary() -> None:
+    now = datetime(2027, 1, 5, 12, tzinfo=timezone.utc)
+    assert _daily_windows(30, now=now) == [
+        ("2026-12-07T00:00:00Z", "2026-12-14T00:00:00Z", 7),
+        ("2026-12-14T00:00:00Z", "2026-12-21T00:00:00Z", 7),
+        ("2026-12-21T00:00:00Z", "2026-12-28T00:00:00Z", 7),
+        ("2026-12-28T00:00:00Z", "2027-01-01T00:00:00Z", 4),
+        ("2027-01-01T00:00:00Z", "2027-01-06T00:00:00Z", 5),
+    ]
+
+
+def test_usage_scan_keeps_every_month_in_the_lookback(monkeypatch) -> None:
+    class _Frozen(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return datetime(2026, 10, 8, 18, 30, tzinfo=tz)
+
+    monkeypatch.setattr("anthropic_radar.scanners.usage.datetime", _Frozen)
+    client = RadarClient(admin_key="sk-ant-admin")
+    seen: list[dict[str, object]] = []
+
+    def get(path: str, params: dict | None = None, admin: bool = True) -> dict:
+        query = dict(params or {})
+        seen.append(query)
+        start = str(query["starting_at"])
+        if query.get("page") == "sept-page-2":
+            return {
+                "data": [
+                    {
+                        "starting_at": "2026-09-16T00:00:00Z",
+                        "results": [{"model": "claude-haiku", "uncached_input_tokens": 2}],
+                    }
+                ],
+                "has_more": False,
+            }
+        if start.startswith("2026-09"):
+            return {
+                "data": [
+                    {
+                        "starting_at": "2026-09-09T00:00:00Z",
+                        "results": [{"model": "claude-sonnet", "uncached_input_tokens": 5}],
+                    }
+                ],
+                "has_more": True,
+                "next_page": "sept-page-2",
+            }
+        return {
+            "data": [
+                {
+                    "starting_at": "2026-10-01T00:00:00Z",
+                    "results": [{"model": "claude-opus", "uncached_input_tokens": 9}],
+                }
+            ],
+            "has_more": False,
+        }
+
+    client.get = get  # type: ignore[method-assign]
+    usage = scan_usage(client, lookback_days=30)
+    months = {bucket.starting_at.month for bucket in usage if bucket.starting_at}
+    assert months == {9, 10}
+    assert {bucket.model for bucket in usage} == {"claude-sonnet", "claude-haiku", "claude-opus"}
+    spans = [(query["starting_at"], query["ending_at"]) for query in seen if "page" not in query]
+    assert spans[0] == ("2026-09-09T00:00:00Z", "2026-09-16T00:00:00Z")
+    assert spans[-1] == ("2026-10-08T00:00:00Z", "2026-10-09T00:00:00Z")
+    assert all(prev[1] == nxt[0] for prev, nxt in pairwise(spans))
+    assert all(int(query["limit"]) <= 7 for query in seen if "page" not in query)
+    september = [query for query in seen if str(query["starting_at"]).startswith("2026-09")]
+    assert september[1]["page"] == "sept-page-2"
 
 
 def test_api_key_scan_can_scope_a_workspace() -> None:

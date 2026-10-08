@@ -4,7 +4,12 @@ from __future__ import annotations
 
 import pytest
 
-from anthropic_radar.client import ANTHROPIC_VERSION, AnthropicRadarError, RadarClient
+from anthropic_radar.client import (
+    ANTHROPIC_VERSION,
+    DEFAULT_TIMEOUT,
+    AnthropicRadarError,
+    RadarClient,
+)
 
 
 class _Resp:
@@ -32,6 +37,7 @@ def test_get_sends_the_admin_key(monkeypatch: pytest.MonkeyPatch) -> None:
         seen["url"] = url
         seen["headers"] = headers
         seen["params"] = params
+        seen["timeout"] = timeout
         return _Resp({"id": "org_1", "name": "Acme"})
 
     monkeypatch.setattr("anthropic_radar.client.requests.get", fake_get)
@@ -45,6 +51,8 @@ def test_get_sends_the_admin_key(monkeypatch: pytest.MonkeyPatch) -> None:
     assert headers["x-api-key"] == "sk-ant-admin"
     assert headers["anthropic-version"] == ANTHROPIC_VERSION
     assert seen["params"] == {"limit": 1}
+    assert seen["timeout"] == DEFAULT_TIMEOUT
+    assert DEFAULT_TIMEOUT >= 120
 
 
 def test_paginate_follows_next_page_then_after_id(monkeypatch: pytest.MonkeyPatch) -> None:
