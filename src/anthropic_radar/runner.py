@@ -21,7 +21,7 @@ from anthropic_radar.scanners.usage import scan_claude_code_usage, scan_cost, sc
 @dataclass
 class RunConfig:
     workspace_id: str | None = None
-    usage_lookback_days: int = 7
+    usage_lookback_days: int = 30
     cost_lookback_days: int = 30
     include_claude_code: bool = True
 

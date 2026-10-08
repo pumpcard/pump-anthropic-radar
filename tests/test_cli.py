@@ -88,8 +88,16 @@ def test_run_json_includes_the_scan_payload(monkeypatch: pytest.MonkeyPatch) -> 
     assert payload["workspaces"][0]["id"] == "wrkspc_1"
     assert payload["usage"][0]["total_tokens"] == 7
     assert seen[0].workspace_id == "wrkspc_1"
-    assert seen[0].usage_lookback_days == 7
+    assert seen[0].usage_lookback_days == 30
     assert seen[0].cost_lookback_days == 30
+
+
+def test_run_extends_a_long_lookback_to_usage(monkeypatch: pytest.MonkeyPatch) -> None:
+    seen = _patch_run(monkeypatch, RunResult())
+    result = runner.invoke(app, ["run", "--lookback", "45", "-o", "json"])
+    assert result.exit_code == 0, result.stdout
+    assert seen[0].usage_lookback_days == 45
+    assert seen[0].cost_lookback_days == 45
 
 
 def test_run_json_can_be_written_to_a_file(monkeypatch: pytest.MonkeyPatch, tmp_path) -> None:
