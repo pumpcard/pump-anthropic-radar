@@ -14,7 +14,7 @@ from anthropic_radar import (
 
 
 def test_version() -> None:
-    assert __version__ == "0.0.2"
+    assert __version__ == "0.0.3"
 
 
 def test_public_names_are_exported() -> None:
