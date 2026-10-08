@@ -82,8 +82,8 @@ pump-anthropic-radar run --admin-key sk-ant-admin01-... --csv-dir ./out
 # Findings only
 pump-anthropic-radar findings
 
-# Scope to a workspace, 14-day usage lookback
-pump-anthropic-radar run --workspace wrkspc_xxx --lookback 14
+# Scope to a workspace. Usage and cost both look back at least 30 days.
+pump-anthropic-radar run --workspace wrkspc_xxx --lookback 45
 
 # Log in to Pump, then push the org cost report (admin key required)
 pump-anthropic-radar login
@@ -107,8 +107,10 @@ header-only `usage.csv`, because Pump starts analysis only after both objects ex
 `--report-file` chooses the cost CSV path; with `--csv-dir` and no `--report-file`
 it is `{csv-dir}/report.csv`. `usage.csv` is written next to it.
 
-`--lookback` is the usage window (default 7 days). The cost scan and the Pump
-cost report use `max(lookback, 30)` days, matching `RunConfig.cost_lookback_days`.
+`--lookback` is the history window (default 7 days). Usage and cost both use
+`max(lookback, 30)` days. The Messages usage API only fills the calendar month
+of `ending_at` in one request, and a daily page defaults to 7 buckets, so the
+usage scan asks for each month in that window separately.
 
 ---
 

@@ -240,8 +240,12 @@ def _report_destination(report_file: str | None, csv_dir: str | None) -> Path:
     return Path("report.csv")
 
 
-def _cost_lookback(lookback_days: int) -> int:
-    """Cost history is at least 30 days, matching RunConfig."""
+def _history_lookback(lookback_days: int) -> int:
+    """Usage and cost share one window of at least 30 days.
+
+    The cost report already used this floor. Usage used the raw ``--lookback``
+    (default 7), so a run on 8 October never asked for September.
+    """
     return max(lookback_days, 30)
 
 
@@ -318,7 +322,9 @@ def run(
         help="Overrides ANTHROPIC_ADMIN_KEY. Unlocks org-wide usage and cost.",
     ),
     lookback: int = typer.Option(
-        7, "--lookback", help="Days of usage history. Cost uses at least 30."
+        7,
+        "--lookback",
+        help="Days of history. Usage and cost both use at least 30.",
     ),
     output: str = typer.Option("table", "--output", "-o", help="table | json"),
     out_file: str | None = typer.Option(None, "--out-file", help="Write the JSON payload here."),
@@ -357,10 +363,11 @@ def run(
     token, pump_base = _resolve_pump_upload(
         upload=upload, upload_token=upload_token, api_base=api_base
     )
+    history_days = _history_lookback(lookback)
     config = RunConfig(
         workspace_id=workspace,
-        usage_lookback_days=lookback,
-        cost_lookback_days=_cost_lookback(lookback),
+        usage_lookback_days=history_days,
+        cost_lookback_days=history_days,
     )
 
     started = time.time()
@@ -422,15 +429,18 @@ def findings(
     admin_key: str | None = typer.Option(
         None, "--admin-key", help="Overrides ANTHROPIC_ADMIN_KEY."
     ),
-    lookback: int = typer.Option(7, "--lookback", help="Days of usage history."),
+    lookback: int = typer.Option(
+        7, "--lookback", help="Days of history. Usage and cost both use at least 30."
+    ),
     output: str = typer.Option("table", "--output", "-o", help="table | json"),
 ) -> None:
     """Scan, then print only the findings table."""
     client = _build_client(api_key, admin_key)
+    history_days = _history_lookback(lookback)
     config = RunConfig(
         workspace_id=workspace,
-        usage_lookback_days=lookback,
-        cost_lookback_days=_cost_lookback(lookback),
+        usage_lookback_days=history_days,
+        cost_lookback_days=history_days,
     )
     try:
         with _ApiWait("Waiting on Anthropic API …"):
