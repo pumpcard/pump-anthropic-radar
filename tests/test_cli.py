@@ -55,7 +55,7 @@ def _sample_result() -> RunResult:
 def test_version() -> None:
     result = runner.invoke(app, ["version"])
     assert result.exit_code == 0
-    assert "pump-anthropic-radar 0.0.2" in result.stdout
+    assert "pump-anthropic-radar 0.0.3" in result.stdout
 
 
 def test_run_rejects_an_unknown_output() -> None:
